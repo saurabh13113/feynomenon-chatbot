@@ -1,5 +1,5 @@
-import FeynmanApp from '@/components/feynman'
+import FeynmanApp from '../components/feynman';
 
 export default function Home() {
-  return <FeynmanApp />
+  return <FeynmanApp />;
 }
