@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BookOpen, Brain, Target, TrendingUp, Check, Award, ChevronRight, 
   Plus, Search, Moon, Sun, User, LogOut, Menu, X, MessageSquare,
@@ -57,15 +57,24 @@ const FeynmanApp: React.FC = () => {
   const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([]);
   const [activeStudy, setActiveStudy] = useState<Study | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({}); // Store messages for each study
+  const [sessionIdMap, setSessionIdMap] = useState<Record<string, string>>({}); // Store session ID for each study
+  const messageIdRef = useRef<number>(0); // Ref for unique message IDs
   const [inputValue, setInputValue] = useState<string>('');
   
   // Backend Integration State
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInitializingStudy, setIsInitializingStudy] = useState<boolean>(false);
 
   // Backend API Configuration
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+  // Helper function to generate unique message IDs
+  const generateMessageId = (): string => {
+    messageIdRef.current += 1;
+    return `msg_${Date.now()}_${messageIdRef.current}`;
+  };
 
   useEffect(() => {
     // Prevent hydration mismatch
@@ -99,9 +108,24 @@ const FeynmanApp: React.FC = () => {
   }, [mounted]);
 
   // API Integration Functions
-  const sendMessageToBackend = async (message: string): Promise<any> => {
+  const sendMessageToBackend = async (message: string, forceNewSession: boolean = false): Promise<any> => {
     try {
       setIsLoading(true);
+      
+      // Get the correct session ID for the active study
+      let sessionIdToUse = null;
+      if (activeStudy) {
+        if (forceNewSession) {
+          // Force new session - don't use existing session ID
+          sessionIdToUse = null;
+          console.log(`Forcing new session for study: ${activeStudy.title}`);
+        } else {
+          // Use existing session ID for this study, or null if none exists
+          sessionIdToUse = sessionIdMap[activeStudy.id] || null;
+          console.log(`Using existing session ID for study: ${activeStudy.title}, sessionId: ${sessionIdToUse}`);
+        }
+      }
+      
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
@@ -109,7 +133,7 @@ const FeynmanApp: React.FC = () => {
         },
         body: JSON.stringify({
           message: message,
-          session_id: sessionId // Include existing session if available
+          session_id: sessionIdToUse
         }),
       });
 
@@ -119,9 +143,13 @@ const FeynmanApp: React.FC = () => {
 
       const data = await response.json();
       
-      // Update session ID if new session was created
-      if (data.session_id && !sessionId) {
-        setSessionId(data.session_id);
+      // Update session ID map if new session was created
+      if (data.session_id && activeStudy) {
+        console.log(`New session created for study: ${activeStudy.title}, sessionId: ${data.session_id}`);
+        setSessionIdMap(prev => ({
+          ...prev,
+          [activeStudy.id]: data.session_id
+        }));
       }
       
       return data;
@@ -265,33 +293,104 @@ const FeynmanApp: React.FC = () => {
       }
     });
 
+    // Save current messages to map if there's an active study
+    if (activeStudy) {
+      setMessagesMap(prev => ({
+        ...prev,
+        [activeStudy.id]: messages
+      }));
+    }
+
     setActiveStudy(newStudy);
-    setMessages([]);
-    setSessionId(null); // Reset session for new study
+    setMessages([]); // Clear messages for new study
+    // Don't reset sessionId here - let the backend create a new session
     
     // Send initial message to backend to start learning session
     try {
-      const response = await sendMessageToBackend(`I want to learn about ${topic}`);
+      const response = await sendMessageToBackend(`I want to learn about ${topic}`, true); // Force new session
       
       if (response && response.response) {
         const aiMessage: Message = {
-          id: '1',
+          id: generateMessageId(),
           type: 'ai',
           content: response.response,
           timestamp: new Date()
         };
-        setMessages([aiMessage]);
+        setMessages(prev => [aiMessage]);
+        
+        // Save initial message to map
+        setMessagesMap(prev => ({
+          ...prev,
+          [newStudy.id]: [aiMessage]
+        }));
       }
     } catch (error) {
       console.error('Failed to start study session:', error);
       // Fallback message if backend is unavailable
       const fallbackMessage: Message = {
-        id: '1',
+        id: generateMessageId(),
         type: 'ai',
         content: `Great! Let's start learning about "${topic}". I'll use the Feynman Technique to help you master this concept. Can you begin by explaining what you already know about this topic in simple terms?`,
         timestamp: new Date()
       };
       setMessages([fallbackMessage]);
+      
+      // Save fallback message to map
+      setMessagesMap(prev => ({
+        ...prev,
+        [newStudy.id]: [fallbackMessage]
+      }));
+    }
+  };
+
+  const switchToStudy = (study: Study) => {
+    console.log(`Switching to study: ${study.title}, existing sessionId: ${sessionIdMap[study.id]}`);
+    
+    // Save current messages to map if there's an active study
+    if (activeStudy) {
+      setMessagesMap(prev => ({
+        ...prev,
+        [activeStudy.id]: messages
+      }));
+    }
+    
+    setActiveStudy(study);
+    // Load messages for the selected study, or empty array if none exist
+    setMessages(messagesMap[study.id] || []);
+    // Don't clear session ID - use the existing session ID for this study
+    // The backend will continue the same conversation for this study
+    
+    // If this study doesn't have a session ID yet, initialize it
+    if (!sessionIdMap[study.id] && messagesMap[study.id]?.length === 0) {
+      console.log(`Initializing new session for study: ${study.title}`);
+      continueStudySession(study);
+    }
+  };
+
+  const continueStudySession = async (study: Study) => {
+    // If this study doesn't have a session ID yet, create one by sending an initial message
+    if (!sessionIdMap[study.id] && messagesMap[study.id]?.length === 0) {
+      setIsInitializingStudy(true);
+      try {
+        const response = await sendMessageToBackend(`I want to continue learning about ${study.title}`, true);
+        if (response && response.response) {
+          const aiMessage: Message = {
+            id: generateMessageId(),
+            type: 'ai',
+            content: response.response,
+            timestamp: new Date()
+          };
+          setMessages([aiMessage]);
+          setMessagesMap(prev => ({
+            ...prev,
+            [study.id]: [aiMessage]
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to continue study session:', error);
+      } finally {
+        setIsInitializingStudy(false);
+      }
     }
   };
 
@@ -299,13 +398,25 @@ const FeynmanApp: React.FC = () => {
     if (!inputValue.trim() || !activeStudy) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       type: 'user',
       content: inputValue,
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const newMessages = [...prev, userMessage];
+      
+      // Save messages to map for current study
+      if (activeStudy) {
+        setMessagesMap(prevMap => ({
+          ...prevMap,
+          [activeStudy.id]: newMessages
+        }));
+      }
+      
+      return newMessages;
+    });
     const currentInput = inputValue;
     setInputValue('');
 
@@ -315,12 +426,24 @@ const FeynmanApp: React.FC = () => {
       
       if (response && response.response) {
         const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
+          id: generateMessageId(),
           type: 'ai',
           content: response.response,
           timestamp: new Date()
         };
-        setMessages(prev => [...prev, aiMessage]);
+        setMessages(prev => {
+          const newMessages = [...prev, aiMessage];
+          
+          // Save messages to map for current study
+          if (activeStudy) {
+            setMessagesMap(prevMap => ({
+              ...prevMap,
+              [activeStudy.id]: newMessages
+            }));
+          }
+          
+          return newMessages;
+        });
         
         // Update study progress based on backend response
         if (response.phase && activeStudy) {
@@ -349,14 +472,26 @@ const FeynmanApp: React.FC = () => {
       
       // Fallback response if backend is unavailable
       const fallbackMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateMessageId(),
         type: 'ai',
         content: isConnected ? 
           "I'm having trouble processing your response right now. Please try again in a moment." :
           "I'm currently offline. Your message has been saved and I'll respond when the connection is restored.",
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, fallbackMessage]);
+      setMessages(prev => {
+        const newMessages = [...prev, fallbackMessage];
+        
+        // Save messages to map for current study
+        if (activeStudy) {
+          setMessagesMap(prevMap => ({
+            ...prevMap,
+            [activeStudy.id]: newMessages
+          }));
+        }
+        
+        return newMessages;
+      });
     }
   };
 
@@ -392,7 +527,7 @@ const FeynmanApp: React.FC = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl p-8 max-w-md w-full mx-4`}>
           <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Welcome to Feynomenon AI
+            Welcome to FeynmanAI
           </h2>
           <div className="space-y-4">
             <div>
@@ -470,7 +605,7 @@ const FeynmanApp: React.FC = () => {
         <div className="text-center">
           <Brain className="w-16 h-16 text-indigo-600 mx-auto mb-6" />
           <h1 className={`text-4xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Feynmomenon AI
+            FeynmanAI
           </h1>
           <p className={`text-xl mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             Master any concept through AI-powered adaptive questioning
@@ -500,7 +635,7 @@ const FeynmanApp: React.FC = () => {
             <div className="flex items-center">
               <Brain className="w-8 h-8 text-indigo-600 mr-2" />
               <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Feynomenon AI
+                FeynmanAI
               </h1>
             </div>
             <button
@@ -519,8 +654,16 @@ const FeynmanApp: React.FC = () => {
           
           <button
             onClick={() => {
+              // Save current messages to map if there's an active study
+              if (activeStudy) {
+                setMessagesMap(prev => ({
+                  ...prev,
+                  [activeStudy.id]: messages
+                }));
+              }
               setActiveStudy(null);
               setMessages([]);
+              // Don't clear session ID here - only clear when starting a new study
               setCurrentView('chat');
             }}
             className="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center"
@@ -551,7 +694,7 @@ const FeynmanApp: React.FC = () => {
                   {group.studies.map((study) => (
                     <div
                       key={study.id}
-                      onClick={() => setActiveStudy(study)}
+                      onClick={() => switchToStudy(study)}
                       className={`p-3 rounded-lg cursor-pointer transition-all ${
                         activeStudy?.id === study.id
                           ? 'bg-indigo-100 dark:bg-indigo-900/50 border-l-4 border-indigo-600'
@@ -709,6 +852,20 @@ const FeynmanApp: React.FC = () => {
           ) : (
             // Messages
             <div className="space-y-4 max-w-4xl mx-auto">
+              {isInitializingStudy && (
+                <div className="flex justify-start">
+                  <div className={`max-w-3xl p-4 rounded-2xl ${
+                    isDarkMode
+                      ? 'bg-gray-800 text-white'
+                      : 'bg-white text-gray-900 shadow-sm border'
+                  }`}>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm">Initializing study session...</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -746,8 +903,8 @@ const FeynmanApp: React.FC = () => {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !isLoading && sendMessage()}
-                disabled={isLoading}
+                onKeyPress={(e) => e.key === 'Enter' && !isLoading && !isInitializingStudy && sendMessage()}
+                disabled={isLoading || isInitializingStudy}
                 placeholder={
                   activeStudy 
                     ? "Explain your understanding or ask a question..." 
@@ -767,10 +924,10 @@ const FeynmanApp: React.FC = () => {
                     startNewStudy(inputValue);
                   }
                 }}
-                disabled={!inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading || isInitializingStudy}
                 className="bg-indigo-600 text-white p-4 rounded-xl hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[56px]"
               >
-                {isLoading ? (
+                {isLoading || isInitializingStudy ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <ChevronRight className="w-5 h-5" />
