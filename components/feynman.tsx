@@ -1221,7 +1221,7 @@ const FeynmanApp: React.FC = () => {
           <div className="max-w-4xl mx-auto">
             <div className="flex space-x-3">
               {/* Voice Input Button */}
-              {voiceEnabled && recognition && (
+              {voiceEnabled && (
                 <button
                   onClick={isListening ? stopVoiceInput : startVoiceInput}
                   disabled={isLoading || isInitializingStudy}
@@ -1239,7 +1239,6 @@ const FeynmanApp: React.FC = () => {
                   )}
                 </button>
               )}
-
               <button
                 onClick={toggleAutoSpeak}
                 disabled={!voiceEnabled}
