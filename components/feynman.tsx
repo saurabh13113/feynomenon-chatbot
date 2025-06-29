@@ -786,21 +786,7 @@ const FeynmanApp: React.FC = () => {
       >
         {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
       </button>
-      
-      <button
-        onClick={toggleAutoSpeak}
-        disabled={!voiceEnabled}
-        className={`p-2 rounded-lg transition-all ${
-          autoSpeak && voiceEnabled
-            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' 
-            : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
-        title={autoSpeak ? 'Auto-speak enabled' : 'Auto-speak disabled'}
-      >
-        <Sparkles className="w-4 h-4" />
-      </button>
-
-      
+    
     </div>
   );
 
@@ -1254,6 +1240,19 @@ const FeynmanApp: React.FC = () => {
                 </button>
               )}
 
+              <button
+                onClick={toggleAutoSpeak}
+                disabled={!voiceEnabled}
+                className={`p-2 rounded-lg transition-all ${
+                  autoSpeak && voiceEnabled
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' 
+                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                title={autoSpeak ? 'Auto-speak enabled' : 'Auto-speak disabled'}
+              >
+                <Sparkles className="w-4 h-4" />
+              </button>
+              
               <button
               onClick={toggleVoiceGender}
               disabled={!voiceEnabled}
