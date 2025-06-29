@@ -822,7 +822,7 @@ const FeynmanApp: React.FC = () => {
               </div>
             </div>
             <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Welcome to FeynmanAI
+              Welcome to Feynomenon AI
             </h2>
             <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Master any concept through AI-powered adaptive questioning
@@ -913,7 +913,7 @@ const FeynmanApp: React.FC = () => {
             <Brain className="w-16 h-16 text-white" />
           </div>
           <h1 className={`text-5xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent`}>
-            FeynmanAI
+            FeynomenonAI
           </h1>
           <p className={`text-xl mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             Master any concept through AI-powered adaptive questioning
@@ -952,7 +952,7 @@ const FeynmanApp: React.FC = () => {
                 <Brain className="w-6 h-6 text-white" />
               </div>
               <h1 className={`text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent`}>
-                FeynmanAI
+                FeynomenonAI
               </h1>
             </div>
             <div className="flex items-center space-x-2">
