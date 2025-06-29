@@ -881,7 +881,7 @@ const FeynmanApp: React.FC = () => {
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 rounded-full mb-6 mx-auto w-fit">
             <Brain className="w-12 h-12 text-white animate-pulse" />
           </div>
-          <p className="text-gray-600 animate-pulse">Loading FeynmanAI...</p>
+          <p className="text-gray-600 animate-pulse">Loading FeynomenonAI...</p>
         </div>
       </div>
     );
@@ -1252,7 +1252,7 @@ const FeynmanApp: React.FC = () => {
               >
                 <Sparkles className="w-4 h-4" />
               </button>
-              
+
               <button
               onClick={toggleVoiceGender}
               disabled={!voiceEnabled}
