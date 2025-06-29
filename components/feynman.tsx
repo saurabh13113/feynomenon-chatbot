@@ -392,7 +392,7 @@ const FeynmanApp: React.FC = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl p-8 max-w-md w-full mx-4`}>
           <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Welcome to FeynmanAI
+            Welcome to Feynomenon AI
           </h2>
           <div className="space-y-4">
             <div>
@@ -470,7 +470,7 @@ const FeynmanApp: React.FC = () => {
         <div className="text-center">
           <Brain className="w-16 h-16 text-indigo-600 mx-auto mb-6" />
           <h1 className={`text-4xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            FeynmanAI
+            Feynmomenon AI
           </h1>
           <p className={`text-xl mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             Master any concept through AI-powered adaptive questioning
@@ -500,7 +500,7 @@ const FeynmanApp: React.FC = () => {
             <div className="flex items-center">
               <Brain className="w-8 h-8 text-indigo-600 mr-2" />
               <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                FeynmanAI
+                Feynomenon AI
               </h1>
             </div>
             <button
